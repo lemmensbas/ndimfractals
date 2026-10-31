@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D inversion IFS fractal (VR)</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#07060d;--fg:#ece8f5;--panel:rgba(20,16,34,.78);--accent:#e07a5f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+canvas{display:block}
+#ui{position:fixed;left:0;right:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;background:linear-gradient(transparent,var(--panel))}
+button{font:inherit;font-size:15px;padding:10px 16px;border-radius:10px;border:1px solid #5a4f7a;background:#1d1830;color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#1b0f0b;font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+#info{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:14px;right:14px;font-size:14px;line-height:1.4;text-shadow:0 1px 3px #000;pointer-events:none}
+#info b{font-size:16px}
+#load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:18px;z-index:5}
+</style>
+</head>
+<body>
+<div id="load">Computing the fractal…</div>
+<div id="info"><b>Inversion IFS in 3D</b><br>θ<sub>b</sub>(x) = (x+b)/‖x+b‖², b ∈ ℕ×ℤ² · drag to rotate · scroll or pinch to zoom</div>
+<div id="ui">
+  <button id="vr" class="primary" disabled>Checking VR…</button>
+  <button id="mode">View: full set</button>
+  <button id="spin">Auto-rotate: on</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script>
+(function(){
+  // ---------- generate the point cloud (chaos game) ----------
+  var N=50, bs=[], cum=[], tot=0;
+  for(var n=1;n<=N;n++)for(var m=-N;m<=N;m++)for(var k=-N;k<=N;k++){
+    bs.push(n,m,k); tot+=Math.pow(n*n+m*m+k*k,-2); cum.push(tot);
+  }
+  function pick(){
+    var r=Math.random()*tot, lo=0, hi=cum.length-1;
+    while(lo<hi){var mid=(lo+hi)>>1; if(cum[mid]<r)lo=mid+1; else hi=mid;}
+    return lo*3;
+  }
+  var COUNT=2000000, pos=new Float32Array(COUNT*3);
+  var x=0.5,y=0,z=0;
+  for(var i=-20;i<COUNT;i++){
+    var j=pick(), ux=x+bs[j], uy=y+bs[j+1], uz=z+bs[j+2], r2=ux*ux+uy*uy+uz*uz;
+    x=ux/r2; y=uy/r2; z=uz/r2;
+    if(i<0) continue;
+    var o=i*3; pos[o]=x-0.5; pos[o+1]=y; pos[o+2]=z;
+    var t=Math.min(1,Math.max(0,x));            // colour by x1
+    
+  }
+
+  // ---------- scene ----------
+  var renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setClearColor(0x07060d);
+  renderer.xr.enabled=true;
+  document.body.appendChild(renderer.domElement);
+  var scene=new THREE.Scene();
+  var camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.05,50);
+  camera.position.set(0,1.4,0.4);
+
+  var geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  
+  var mat=new THREE.ShaderMaterial({
+    uniforms:{uMode:{value:0},uPos:{value:0},uSize:{value:2.6}},
+    vertexShader:
+      'uniform float uMode,uPos,uSize; varying vec3 vC;'+
+      'void main(){ float tc=clamp(position.x+0.5,0.0,1.0); vC=mix(vec3(0.15,0.9,0.45),vec3(0.15,0.45,1.0),tc); vec4 mv=modelViewMatrix*vec4(position,1.0);'+
+      ' float d=1.0; if(uMode>0.5&&uMode<1.5) d=abs(position.x-uPos); else if(uMode>1.5) d=abs(position.z-uPos);'+
+      ' float keep = (uMode<0.5)?1.0:step(d,0.012);'+
+      ' gl_PointSize = keep*max(1.2,uSize/(-mv.z));'+
+      ' gl_Position=projectionMatrix*mv; if(keep<0.5) gl_Position=vec4(2.0,2.0,2.0,1.0); }',
+    fragmentShader:
+      'varying vec3 vC; void main(){ vec2 p=gl_PointCoord-0.5; if(dot(p,p)>0.25) discard; gl_FragColor=vec4(vC,1.0); }',
+    vertexColors:true
+  });
+  var cloud=new THREE.Points(geo,mat);
+  var group=new THREE.Group();
+  group.add(cloud);
+  // faint guide sphere
+  var guide=new THREE.Mesh(new THREE.SphereGeometry(0.5,32,16),
+    new THREE.MeshBasicMaterial({color:0x6a5acd,wireframe:true,transparent:true,opacity:0.05}));
+  group.add(guide);
+  group.position.set(0,1.4,-1.2);
+  group.scale.setScalar(1.5);
+  scene.add(group);
+
+  // ---------- interaction ----------
+  var modes=['full set','sweep slice x₁','sweep slice x₃'], mode=0, spin=true, t0=0;
+  var modeBtn=document.getElementById('mode'), spinBtn=document.getElementById('spin');
+  function setMode(m){mode=m%3; mat.uniforms.uMode.value=mode; modeBtn.textContent='View: '+modes[mode]; guide.visible=mode===0;}
+  modeBtn.onclick=function(){setMode(mode+1)};
+  spinBtn.onclick=function(){spin=!spin; spinBtn.textContent='Auto-rotate: '+(spin?'on':'off')};
+
+  var drag=false, lx=0, ly=0, pinch=0;
+  var el=renderer.domElement;
+  el.addEventListener('pointerdown',function(e){drag=true;lx=e.clientX;ly=e.clientY;});
+  addEventListener('pointerup',function(){drag=false});
+  addEventListener('pointermove',function(e){
+    if(!drag) return;
+    group.rotation.y+=(e.clientX-lx)*0.008; group.rotation.x+=(e.clientY-ly)*0.008;
+    lx=e.clientX; ly=e.clientY;
+  });
+  el.addEventListener('wheel',function(e){
+    e.preventDefault(); var s=group.scale.x*Math.exp(-e.deltaY*0.001);
+    group.scale.setScalar(Math.min(12,Math.max(0.5,s)));
+  },{passive:false});
+  el.addEventListener('touchmove',function(e){
+    if(e.touches.length===2){
+      var dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY, d=Math.hypot(dx,dy);
+      if(pinch) group.scale.setScalar(Math.min(12,Math.max(0.5,group.scale.x*d/pinch)));
+      pinch=d;
+    }
+  },{passive:true});
+  el.addEventListener('touchend',function(){pinch=0});
+  addEventListener('resize',function(){
+    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight);
+  });
+
+  // ---------- VR ----------
+  var vrBtn=document.getElementById('vr'), session=null;
+  function onSessionEnd(){session=null; vrBtn.textContent='Enter VR'; document.getElementById('ui').style.display='flex'; document.getElementById('info').style.display='block';}
+  if(navigator.xr && navigator.xr.isSessionSupported){
+    navigator.xr.isSessionSupported('immersive-vr').then(function(ok){
+      if(!ok){vrBtn.textContent='VR not available on this device';return;}
+      vrBtn.disabled=false; vrBtn.textContent='Enter VR';
+      vrBtn.onclick=function(){
+        if(session){session.end();return;}
+        navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']}).then(function(s){
+          session=s; s.addEventListener('end',onSessionEnd);
+          renderer.xr.setReferenceSpaceType('local-floor');
+          renderer.xr.setSession(s);
+          vrBtn.textContent='Exit VR';
+        });
+      };
+    }).catch(function(){vrBtn.textContent='VR not available on this device'});
+  } else { vrBtn.textContent='WebXR not supported in this browser'; }
+
+  // controllers: trigger cycles the view mode, squeeze toggles rotation; grip-drag not needed
+  for(var i=0;i<2;i++){
+    var ctl=renderer.xr.getController(i);
+    ctl.addEventListener('select',function(){setMode(mode+1)});
+    ctl.addEventListener('squeeze',function(){spin=!spin});
+    scene.add(ctl);
+  }
+
+  // ---------- loop ----------
+  var clock=new THREE.Clock();
+  renderer.setAnimationLoop(function(){
+    var dt=clock.getDelta(); t0+=dt;
+    if(spin) group.rotation.y+=dt*0.25;
+    mat.uniforms.uPos.value=0.5*Math.sin(t0*0.5);
+    renderer.render(scene,camera);
+  });
+  document.getElementById('load').style.display='none';
+})();
+</script>
+</body>
+</html>

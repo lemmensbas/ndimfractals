@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inversion fractals: an IFS from continued fractions to 4D</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#fbfaf7;--fg:#1d1b24;--mut:#5d5a68;--card:#ffffff;--line:#dcd8e6;--acc:#0b7a75;--accbg:#e3f4f2;--code:#f1eff6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d0c14;--fg:#ece8f5;--mut:#a29fb3;--card:#16141f;--line:#2e2a3d;--acc:#3ed1c4;--accbg:#12302e;--code:#1c1a28}}
+:root[data-theme="dark"]{--bg:#0d0c14;--fg:#ece8f5;--mut:#a29fb3;--card:#16141f;--line:#2e2a3d;--acc:#3ed1c4;--accbg:#12302e;--code:#1c1a28}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 Georgia,"Times New Roman",serif}
+header{padding:56px 20px 28px;max-width:860px;margin:0 auto}
+h1{font:700 clamp(30px,6vw,46px)/1.1 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0 0 14px}
+h2{font:700 26px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0 0 12px}
+.sub{color:var(--mut);font-size:19px;margin:0}
+nav{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);border-block:1px solid var(--line);z-index:3}
+nav div{max-width:860px;margin:0 auto;padding:10px 20px;display:flex;gap:18px;flex-wrap:wrap;font:15px system-ui,sans-serif}
+nav a{color:var(--acc);text-decoration:none}
+main{max-width:860px;margin:0 auto;padding:0 20px 60px}
+section{padding:34px 0;border-bottom:1px solid var(--line)}
+.eq{background:var(--code);border-radius:10px;padding:14px 18px;margin:16px 0;text-align:center;font-size:19px;overflow-x:auto}
+.note{background:var(--accbg);border-left:4px solid var(--acc);padding:12px 16px;border-radius:6px;margin:16px 0;font-size:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.cards a.btn{display:inline-block;margin-top:8px}
+a.btn{background:var(--acc);color:var(--bg);padding:9px 16px;border-radius:9px;text-decoration:none;font:600 15px system-ui,sans-serif}
+.ctl{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font:14px system-ui,sans-serif;margin-top:10px}
+canvas{width:100%;height:auto;aspect-ratio:1.9/1;display:block;border-radius:10px;background:#07060d}
+button{font:inherit;font-size:14px;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+table{border-collapse:collapse;font:15px system-ui,sans-serif;margin:12px 0;display:block;overflow-x:auto}
+td,th{border:1px solid var(--line);padding:7px 12px;text-align:center}
+footer{max-width:860px;margin:0 auto;padding:0 20px 50px;color:var(--mut);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Inversion fractals</h1>
+  <p class="sub">An iterated function system built from inversions in spheres, generalising continued fractions from the line to the plane, 3-space and 4-space.</p>
+</header>
+<nav><div><a href="#idea">The idea</a><a href="#why">Why it works</a><a href="#cf">Continued fractions</a><a href="#demo">Live 2D demo</a><a href="#higher">3D and 4D</a><a href="#notes">Notes</a></div></nav>
+<main>
+
+<section id="idea">
+<h2>The idea</h2>
+<p>An <em>iterated function system</em> (IFS) is a family of contracting maps. Its <em>invariant set</em> K is the set that equals the union of its own images under all the maps. It is self-similar: each piece is a shrunken, distorted copy of the whole.</p>
+<p>Here the maps are <em>inversions</em>. Inversion in the unit sphere sends x to x/‖x‖², so a point at distance r from the origin goes to distance 1/r on the same ray. Composing it with a lattice translation gives, for each b in ℕ×ℤ<sup>d−1</sup>, the map</p>
+<div class="eq">θ<sub>b</sub>(x) = (x + b) / ‖x + b‖²,  x ∈ B = open ball of radius ½ centred at (½, 0, …, 0)</div>
+<p>The alphabet is infinite: b = (n, m) in the plane with n ≥ 1, b = (n, m, k) in 3-space, b = (n, m, k, l) in 4-space. Each such map is <em>conformal</em>: it preserves angles and acts on small pieces as a similarity with ratio 1/‖x + b‖². In dimension 3 and up, Liouville’s theorem says that conformal maps are Möbius transformations, so inversions are essentially the only maps of this kind.</p>
+<div class="note">A sign convention: the page uses x + b, which keeps everything inside the ball. With x − b exactly as first written, the same construction works in the mirror-image ball centred at (−½, 0, …, 0), and the picture is reflected.</div>
+</section>
+
+<section id="why">
+<h2>Why it works</h2>
+<p><strong>The ball is the right domain.</strong> A point x lies in B exactly when ‖x‖² &lt; x<sub>1</sub>. Inversion swaps B with the half-space {y<sub>1</sub> &gt; 1}. For x in B, the first coordinate of x + b exceeds n ≥ 1, so θ<sub>b</sub>(x) lands back in B. Each map sends B into itself.</p>
+<p><strong>The pieces tile without overlap.</strong> The translated ball B + b is a ball of radius ½ centred at b + (½, 0, …), and neighbouring lattice translates touch at single points. Inversion maps balls to balls, so θ<sub>b</sub>(B) are disjoint open balls that touch their neighbours. This is the picture you see in the 2D demo with “first-level pieces” switched on, and it is the <em>open set condition</em> from fractal geometry.</p>
+<p><strong>Contraction.</strong> The derivative of θ<sub>b</sub> has norm 1/‖x + b‖², which is below 1 on B but approaches 1 near the corner x = 0 for b = (1, 0, …). So, as with ordinary continued fractions, the system is not uniformly contracting at the first step, and one works with composed maps. The theory of infinite conformal IFS (Mauldin and Urbański) covers this setting.</p>
+<p><strong>Dimension.</strong> The pieces have size about ‖b‖<sup>−2</sup>, and the sum Σ<sub>b</sub> ‖b‖<sup>−2t</sup> over a d-dimensional lattice converges exactly when t &gt; d/2. This number d/2 is the system’s <em>finiteness parameter</em>, and a standard result says the Hausdorff dimension of the limit set is at least that. It gives a lower bound only; I have not computed the actual dimension.</p>
+<table><tr><th>Dimension d</th><th>Digits b</th><th>Finiteness parameter d/2</th></tr>
+<tr><td>2</td><td>ℕ×ℤ</td><td>1</td></tr><tr><td>3</td><td>ℕ×ℤ²</td><td>3/2</td></tr><tr><td>4</td><td>ℕ×ℤ³</td><td>2</td></tr></table>
+</section>
+
+<section id="cf">
+<h2>The link to continued fractions</h2>
+<p>On the real line, the maps x ↦ 1/(x + n) with n = 1, 2, 3, … generate the classical continued fractions 1/(n₁ + 1/(n₂ + 1/(n₃ + …))). Their images cover [0, 1], apart from the endpoint 0 which is only a limit, and every number there has such an expansion. The Gauss map is the inverse dynamics.</p>
+<p>In the plane, identify points with complex numbers. Inversion x/‖x‖² becomes z ↦ 1/z̄, so</p>
+<div class="eq">θ<sub>b</sub>(z) = 1 / conj(z + b),  b = n + im, n ≥ 1</div>
+<p>Composing two consecutive maps cancels the two conjugations and gives holomorphic Möbius maps. The limit set is therefore a set of continued-fraction-type expansions with digits in the Gaussian integers with positive real part, in the spirit of Hurwitz-style complex continued fractions. In higher dimensions the same construction works with Möbius transformations of ℝ<sup>d</sup>, which no longer have a complex-number description.</p>
+</section>
+
+<section id="demo">
+<h2>Live 2D demo</h2>
+<p>This runs in your browser using the <em>chaos game</em>: start at any point, repeatedly apply a randomly chosen θ<sub>b</sub>, and plot where you land. Because the maps contract, the orbit settles onto K and then wanders over it. Digits are weighted by ‖b‖<sup>−3</sup> so the large pieces fill in quickly.</p>
+<div class="card">
+  <canvas id="cv" width="1140" height="600"></canvas>
+  <div class="ctl">
+    <label>Digit bound N: <b id="nv">20</b> <input id="N" type="range" min="2" max="60" value="20"></label>
+    <label>Points: <b id="pv">1.0M</b> <input id="P" type="range" min="1" max="30" value="10"></label>
+    <label><input id="lv1" type="checkbox"> first-level pieces</label>
+    <button id="go">Redraw</button>
+  </div>
+</div>
+<p>With “first-level pieces” on, you see the discs θ<sub>b</sub>(B) for |b| ≤ about 3. Each is an inverted copy of B; they touch one another and cover the set except for a thin boundary. Large digits produce tiny discs that crowd toward the point 0 on the left and toward its images, which is where the dense clusters of dots form.</p>
+</section>
+
+<section id="higher">
+<h2>3D and 4D</h2>
+<p>The same formula works in any dimension. In ℝ³ the invariant set is a cloud, and in ℝ⁴ it lives in a 4-dimensional ball. To look at it we need slices.</p>
+<div class="cards">
+  <div class="card"><b>3D set in VR</b><p style="font-size:15px;margin:6px 0">Rotate and zoom the point cloud, or enter VR on a headset. Two modes sweep a thin slice through the set.</p>
+    <a class="btn" href="3d.html">Open 3D page</a></div>
+  <div class="card"><b>4D set: rotating hyperplane</b><p style="font-size:15px;margin:6px 0">A 3D slice of the 4D set whose cutting hyperplane turns through four dimensions. Add <code>#hi</code> to its link for high quality.</p>
+    <a class="btn" href="4d.html">Open 4D page</a></div>
+</div>
+<p><strong>What a slice shows.</strong> A planar slice of the 3D set is a section of a set of dimension at least 3/2 by a 2-dimensional plane, so it can look quite different from the planar fractal above. For the plane x₃ = 0 it contains the 2D set, because the digits with k = 0 preserve that plane. Other planes, such as x₁ = ½ or x₂ = x₃, meet only some of the pieces, which gives sparse trees and isolated clusters.</p>
+<p><strong>Rotating a hyperplane in 4D.</strong> The 4D animation rotates the whole point cloud by a 4×4 rotation matrix and keeps only points within a thin slab around the fixed hyperplane w = 0. Equivalently, the cutting hyperplane turns through 4D. A rotation in the x<sub>i</sub>–x₄ plane tilts the hyperplane toward the x<sub>i</sub> direction, which is why points seem to appear, merge and vanish as the slice passes through them.</p>
+</section>
+
+<section id="notes">
+<h2>Notes on what the pictures are</h2>
+<p>All pictures are <em>samples</em> of the set, not exact drawings. Three approximations matter:</p>
+<ul>
+<li><strong>Truncated alphabet.</strong> The alphabet is infinite, but each picture uses only digits up to some bound. The smallest pieces, near the accumulation point 0, are cut off or sparsely sampled.</li>
+<li><strong>Weighted random choice.</strong> The weights decide how dense each region looks, not which points belong to the set.</li>
+<li><strong>Finite thickness of slices.</strong> A slice is a thin slab of points, so it also catches a small neighbourhood on either side.</li>
+</ul>
+<p>For further reading, look up <em>conformal iterated function systems</em> and <em>limit sets of infinite conformal IFS</em> (Mauldin–Urbański), complex continued fractions (Hurwitz, Hensley), and Möbius transformations in higher dimensions.</p>
+</section>
+</main>
+<footer>Pictures generated with a chaos-game sampler. The 3D and 4D pages are separate pages.</footer>
+
+<script>
+(function(){
+  var cv=document.getElementById('cv'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  var Nin=document.getElementById('N'), Pin=document.getElementById('P'), lv1=document.getElementById('lv1');
+  // map ball (centre 0.5, radius 0.5) to canvas: x in [-0.02,1.02] -> width, y in [-0.52,0.52]
+  var s=Math.min(W/1.04,H/1.04), ox=W/2-0.5*s, oy=H/2;
+  function px(x){return ox+x*s} function py(y){return oy-y*s}
+  function draw(){
+    var N=+Nin.value, M=+Pin.value*100000;
+    document.getElementById('nv').textContent=N;
+    document.getElementById('pv').textContent=(M/1e6).toFixed(1)+'M';
+    var bn=[],bm=[],cum=[],tot=0;
+    for(var n=1;n<=N;n++)for(var m=-N;m<=N;m++){bn.push(n);bm.push(m);tot+=Math.pow(n*n+m*m,-1.5);cum.push(tot);}
+    var img=ctx.createImageData(W,H), d=img.data, cnt=new Uint16Array(W*H), x=0.5,y=0;
+    for(var i=-20;i<M;i++){
+      var r=Math.random()*tot, lo=0, hi=cum.length-1;
+      while(lo<hi){var mid=(lo+hi)>>1; if(cum[mid]<r)lo=mid+1; else hi=mid;}
+      var ux=x+bn[lo], uy=y+bm[lo], r2=ux*ux+uy*uy; x=ux/r2; y=uy/r2;
+      if(i<0)continue;
+      var X=Math.round(px(x)), Y=Math.round(py(y));
+      if(X>=0&&X<W&&Y>=0&&Y<H){var q=Y*W+X; if(cnt[q]<60000)cnt[q]++;}
+    }
+    for(var j=0;j<W*H;j++){var c=cnt[j], k=j*4;
+      if(c){var a=Math.min(1,0.45+c*0.18); d[k]=60;d[k+1]=215;d[k+2]=190;d[k+3]=255*a;}}
+    ctx.fillStyle='#07060d'; ctx.fillRect(0,0,W,H); ctx.putImageData(img,0,0);
+    ctx.globalCompositeOperation='source-over';
+    // first-level pieces: inversion of circle centre c=(n+.5,m), radius .5
+    if(lv1.checked){
+      ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,170,90,0.85)';
+      for(var n2=1;n2<=3;n2++)for(var m2=-3;m2<=3;m2++){
+        var cx=n2+0.5, cy=m2, k2=cx*cx+cy*cy-0.25;
+        ctx.beginPath(); ctx.arc(px(cx/k2),py(cy/k2),0.5/k2*s,0,6.2832); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.35)'; ctx.arc(px(0.5),py(0),0.5*s,0,6.2832); ctx.stroke();
+    }
+  }
+  document.getElementById('go').onclick=draw;
+  Nin.oninput=Pin.oninput=function(){document.getElementById('nv').textContent=Nin.value;document.getElementById('pv').textContent=(Pin.value/10).toFixed(1)+'M'};
+  lv1.onchange=draw;
+  draw();
+})();
+</script>
+</body>
+</html>
